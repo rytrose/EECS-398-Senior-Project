@@ -33,8 +33,18 @@
 #define panel_8 A8
 #define panel_9 A9
 
+/***************************
+ * Audio processing globals
+ ***************************/
+ SdReader card;
+ FatVolume vol;
+ FatReader root;
+ FatReader f;
+
+ WaveHC wave;
+
 /**************************
- * Data collection globals
+ * Internet data collection globals
  **************************/
 
 // MAC address of Ethernet 2 Shield
@@ -56,6 +66,46 @@ void setup() {
   Serial.begin(9600);
   
   // PINS DEFAULT TO INPUT
+  // Set DAC output control for Wave shield
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+
+  // Initialize SD card
+  if(!card.init()){
+    Serial.println("SD card initialization failed");
+    sdErrorCheck();
+    while(1); // Do not allow program to progress
+  }
+
+  // From Adafruit Play6_HC ex.
+  // Optimizes read -- may not be stable
+  card.partialBlockRead(true);
+  
+  // Look for FAT partition on SD
+  uint8_t part;
+  for (part = 0; part < 5; part++) {     // Up to 5 slots
+    if (vol.init(card, part)) 
+      break;                             // Partition found
+  }
+  if (part == 5) {                       // No partition found
+    Serial.println("No valid FAT partition!");
+    sdErrorCheck();                      // Something went wrong, lets print out why
+    while(1);                            // Do not allow program to progress
+  }
+
+  // SD information
+  Serial.println("Using partition ");
+  Serial.print(part, DEC);
+  Serial.print(", type is FAT");
+  Serial.println(vol.fatType(),DEC);     // FAT16 or FAT32
+
+  // Try to open root
+  if (!root.openRoot(vol)) {
+    Serial.println("Can't open root directory.");
+    while(1);                            // Do not allow program to progress
+  }
   
   // Check IP status
   if(Ethernet.begin(mac)){
@@ -120,4 +170,30 @@ void loop() {
   }
 }
 
+/***********************************************************
+ * Helper function that returns amount of free RAM in bytes
+ ***********************************************************/
+int freeRam(void){
+  extern int  __bss_end; 
+  extern int  *__brkval; 
+  int free_memory; 
+  if((int)__brkval == 0) {
+    free_memory = ((int)&free_memory) - ((int)&__bss_end); 
+  }
+  else {
+    free_memory = ((int)&free_memory) - ((int)__brkval); 
+  }
+  return free_memory; 
+}
 
+/*********************************************
+ * Helper function that prints SD card errors
+ *********************************************/
+void sdErrorCheck(void){
+  if (!card.errorCode()) return;
+  Serial.print("\n\rSD I/O error: ");
+  Serial.print(card.errorCode(), HEX);
+  Serial.print(", ");
+  Serial.println(card.errorData(), HEX);
+  while(1);
+}
