@@ -1,1 +1,5 @@
-print("Hello world!")
+def main( ):
+    print("Python works.")
+    return;
+
+main()
