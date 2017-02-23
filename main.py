@@ -6,6 +6,10 @@ import threading
 
 LARGE_FONT = ("Verdana", "12")
 
+'''
+    Main GUI Class
+        Stores frames and starts app in fullscreen
+'''
 class DisplayApp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
@@ -15,11 +19,6 @@ class DisplayApp(tk.Tk):
         container.pack(side = "top", fill = "both", expand = True)
         container.grid_rowconfigure(0 , weight = 1)
         container.grid_columnconfigure(0 , weight = 1)
-
-
-
-        testVar = tk.StringVar()
-        testVar.set("0")
 
         # make app fullscreen
         self.state = True
@@ -50,6 +49,13 @@ class DisplayApp(tk.Tk):
         self.attributes("-fullscreen", False)
         return "break"
 
+'''
+    IO Label Update Class
+        Allows for labels that update in response to IO
+            Inputs:
+                var - label to be updated
+                updateInt - time (in sec) to refresh, assuming non-blocking IO reads
+'''
 class IOUpdate(threading.Thread):
     def __init__(self, var, updateInt):
         threading.Thread.__init__(self)
@@ -63,16 +69,19 @@ class IOUpdate(threading.Thread):
             self.var.config(text=str(random.random()))
             time.sleep(self.updateInt)
 
-
+'''
+    Landing Page
+        Home page once the display enters user mode
+'''
 class LandingPage(ttk.Frame):
 
     def __init__(self, parent, controller):
         ttk.Frame.__init__(self, parent)
-        label = ttk.Label(self, text = "Lake Metroparks Farmpark Solar Tracker", font = LARGE_FONT)
-        label.pack(pady = 10, padx = 10)
+        title = ttk.Label(self, text = "Lake Metroparks Farmpark Solar Tracker", font = LARGE_FONT)
+        title.grid(row=0, column=1, sticky="N")
 
         test = ttk.Label(self, text = "0", font = LARGE_FONT)
-        test.pack(pady = 10, padx = 10)
+        test.grid(row=1, column=1, sticky="N")
 
         # update I/O values
         t = IOUpdate(test, 0.5)
@@ -80,10 +89,20 @@ class LandingPage(ttk.Frame):
         t.start()
 
         audioBtn = ttk.Button(self, text = "Audio Experiments", command = lambda: controller.show_frame(AudioPage))
-        audioBtn.pack()
+        audioBtn.config(width=40)
+        audioBtn.grid(row = 2, column=0, sticky="W", padx=20, pady=40)
         batteryBtn = ttk.Button(self, text = "Battery Diagnostics", command = lambda: controller.show_frame(BatteryPage))
-        batteryBtn.pack()
+        batteryBtn.config(width=40)
+        batteryBtn.grid(row=2, column=2, sticky="E", padx=40, pady=40)
 
+        # grid weights for centering
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+'''
+    Audio Page
+        Page for the audio experiments
+'''
 class AudioPage(ttk.Frame):
 
     def __init__(self, parent, controller):
@@ -94,7 +113,10 @@ class AudioPage(ttk.Frame):
         landingBtn = ttk.Button(self, text = "Back to Landing", command = lambda: controller.show_frame(LandingPage))
         landingBtn.pack()
 
-
+'''
+    Battery Page
+        Page for the battery diagnostics
+'''
 class BatteryPage(ttk.Frame):
 
     def __init__(self, parent, controller):
@@ -105,5 +127,7 @@ class BatteryPage(ttk.Frame):
         landingBtn = ttk.Button(self, text = "Back to Landing", command = lambda: controller.show_frame(LandingPage))
         landingBtn.pack()
 
+# run the app
 app = DisplayApp()
+app.geometry("1024x768")
 app.mainloop()
