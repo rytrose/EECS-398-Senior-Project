@@ -4,11 +4,12 @@ from chuck import *
 import time
 import random
 import threading
+import os
 
 LARGE_FONT = ("Verdana", "12")
 TITLE_FONT = ("Verdana", "24")
 
-# init chuck
+# init ChucK
 init()
 
 '''
@@ -61,7 +62,7 @@ class DisplayApp(tk.Tk):
                 var - label to be updated
                 updateInt - time (in sec) to refresh, assuming non-blocking IO reads
 '''
-class IOUpdate(threading.Thread):
+class IOUpdateLabel(threading.Thread):
     def __init__(self, var, updateInt):
         threading.Thread.__init__(self)
         self.var = var
@@ -74,7 +75,7 @@ class IOUpdate(threading.Thread):
             self.var.config(text=str(random.random()))
             time.sleep(self.updateInt)
 
-'''
+''''
     Landing Page
         Home page once the display enters user mode
 '''
@@ -89,7 +90,7 @@ class LandingPage(ttk.Frame):
         test.grid(row=1, column=1, sticky="N")
 
         # update I/O values
-        t = IOUpdate(test, 0.5)
+        t = IOUpdateLabel(test, 0.5)
         t.daemon = True
         t.start()
 
@@ -181,7 +182,9 @@ class AudioPlayThread(threading.Thread):
     def run(self):
         # establish and connect instruments
         s = StruckBar()
-        s.setVolume(0.8)
+        s.setVolume()
+        s.setStickHardness(0.1)
+        s.setStrikePosition(0.1)
         s.preset(1)
         s.connect()
 
@@ -189,11 +192,19 @@ class AudioPlayThread(threading.Thread):
         while True:
             # what will actually be playing
             while not self.stopped():
-                s.strike(0.4)
-                s.strike(0.8)
-                wait(0.1)
-                wait(0.1)
-                s.strike(1.0)
+                # map incoming current values [0 - 65535]
+                # to [1 - 0.25][sec]
+                # or [60 BPM - 240 BPM]
+                beat = 1 - ((curVal/65535) * 0.75)
+                
+
+                s.setFrequency(100 + (random.random() * 400))
+                wait(0.4)
+                s.strike(0.1)
+                wait(0.4)
+                s.strike(0.2)
+                wait(0.4)
+                s.strike(0.3)
                 wait(0.5)
 
         # disconnect instruments
