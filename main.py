@@ -3,6 +3,7 @@ from tkinter import ttk
 from chuck import *
 import time
 import random
+import math
 import threading
 import os
 
@@ -180,35 +181,66 @@ class AudioPlayThread(threading.Thread):
         return self._stop.isSet()
 
     def run(self):
+        # pitch-to-freq dictionary
+        self.p2f = { 'C2':65.41, 'Cs2/Db2':69.30, 'D2':73.42, 'Ds2/Eb2':77.78, 'E2':82.41,
+'F2':87.31, 'Fs2/Gb2':92.50, 'G2':98.00, 'Gs2/Ab2':103.83, 'A2':110.00,
+'As2/Bb2':116.54, 'B2':123.47, 'C3':130.81, 'Cs3/Db3':138.59, 'D3':146.83,
+'Ds3/Eb3':155.56, 'E3':164.81, 'F3':174.61, 'Fs3/Gb3':185.00, 'G3':196.00,
+'Gs3/Ab3':207.65, 'A3':220.00, 'As3/Bb3':233.08, 'B3':246.94, 'C4':261.63,
+'Cs4/Db4':277.18, 'D4':293.66, 'Ds4/Eb4':311.13, 'E4':329.63, 'F4':349.23,
+'Fs4/Gb4':369.99, 'G4':392.00, 'Gs4/Ab4':415.30, 'A4':440.00, 'As4/Bb4':466.16,
+'B4':493.88, 'C5':523.25, 'Cs5/Db5':554.37, 'D5':587.33, 'Ds5/Eb5':622.25,
+'E5':659.25, 'F5':698.46, 'Fs5/Gb5':739.99, 'G5':783.99, 'Gs5/Ab5':830.61,
+'A5':880.00, 'As5/Bb5':932.33, 'B5':987.77, 'C6':1046.50 }
+
+        self.pClass = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+
+        # create dictionary of pitch frequencies I have chosen
+        self.myPitches = self.p2f.fromkeys(self.pClass)
+        for key in self.myPitches:
+            self.myPitches[key] = self.p2f[key]
+
         # establish and connect instruments
         s = StruckBar()
-        s.setVolume()
+        s.connect()
+        s.setVolume(1.0)
         s.setStickHardness(0.1)
         s.setStrikePosition(0.1)
         s.preset(1)
-        s.connect()
 
+        self.calcPitch(1)
 
         while True:
             # what will actually be playing
             while not self.stopped():
-                # map incoming current values [0 - 65535]
-                # to [1 - 0.25][sec]
-                # or [60 BPM - 240 BPM]
-                beat = 1 - ((curVal/65535) * 0.75)
-                
+                curVal = math.floor(65535 * random.random())
 
-                s.setFrequency(100 + (random.random() * 400))
-                wait(0.4)
-                s.strike(0.1)
-                wait(0.4)
-                s.strike(0.2)
-                wait(0.4)
-                s.strike(0.3)
-                wait(0.5)
+                # set tempo
+                self.beat = self.calcTempo(curVal)
+
+                BeatsPerMeasure = 4
+                while BeatsPerMeasure > 0:
+                    volVal = math.floor(65535 * random.random())
+                    s.setFrequency(self.myPitches[self.calcPitch(volVal)])
+                    s.strike(0.5)
+                    wait(self.beat)
+                    BeatsPerMeasure -= 1
 
         # disconnect instruments
         s.disconnect()
+
+    def calcTempo(self, val):
+        # map incoming current values [0 - 65535]
+        # to [1 - 0.25][sec]
+        # or [60 BPM - 240 BPM]
+        return 1 - ((val/65535) * 0.75)
+
+    def calcPitch(self, val):
+        # map incoming voltage values [0 - 65535]
+        # to freq [variable based on myPitches range of freq]
+        self.freq = 261.63 + (261.62 * (val/65535))
+        # return pitch in myPitches closest to freq
+        return min(self.myPitches, key=lambda y:abs(float(self.myPitches[y]) - self.freq))
 
 '''
     Battery Page
