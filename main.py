@@ -6,8 +6,11 @@ import random
 import math
 import threading
 import os
+import urllib.request, urllib.parse, json
 
-LARGE_FONT = ("Verdana", "12")
+
+MED_FONT = ("Verdana", "12")
+LARGE_FONT = ("Verdana", "18")
 TITLE_FONT = ("Verdana", "24")
 
 # init ChucK
@@ -60,21 +63,49 @@ class DisplayApp(tk.Tk):
     IO Label Update Class
         Allows for labels that update in response to IO
             Inputs:
-                var - label to be updated
-                updateInt - time (in sec) to refresh, assuming non-blocking IO reads
+                lbl - label to be updated
+                pin - pin to read from
+                updateInt - time (in sec) to refresh, assuming instantaneous IO reads
 '''
 class IOUpdateLabel(threading.Thread):
-    def __init__(self, var, updateInt):
+    def __init__(self, lbl, pin, updateInt):
         threading.Thread.__init__(self)
-        self.var = var
+        self.lbl = lbl
+        self.pin = pin
         self.updateInt = updateInt
 
     def run(self):
         # CONSTANTLY GET UPDATED VALUE FROM I/O
         while True:
-            # ADD GPIO ACCESS HERE
-            self.var.config(text=str(random.random()))
+            self.lbl.config(text="TODO")
             time.sleep(self.updateInt)
+
+'''
+    Weather Label Update Class
+        Contains Yahoo! Weather code and updates weather every minute
+            Inputs:
+                weatherLbl - weather label to be updated
+'''
+class WeatherUpdateLabel(threading.Thread):
+    def __init__(self, condLbl, tempLbl):
+        threading.Thread.__init__(self)
+        self.condLbl = condLbl
+        self.tempLbl = tempLbl
+
+    def run(self):
+        # Initialize Yahoo! Weather
+        baseurl = "https://query.yahooapis.com/v1/public/yql?"
+        yql_query = "select item.condition from weather.forecast where woeid=2433149"
+        yql_url = baseurl + urllib.parse.urlencode({'q':yql_query}) + "&format=json"
+
+        while True:
+            # Open URL and grab data
+            result = urllib.request.urlopen(yql_url).read()
+            data = json.loads(result)
+            conditions = data['query']['results']['channel']['item']['condition']
+            self.tempLbl.config(text=str(conditions['temp']) + "°F")
+            self.condLbl.config(text=str(conditions['text']))
+            time.sleep(60)
 
 ''''
     Landing Page
@@ -87,29 +118,39 @@ class LandingPage(ttk.Frame):
         title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT)
         title.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
-        test = ttk.Label(self, text = "0", font = LARGE_FONT)
-        test.grid(row=1, column=1, sticky="N")
+        weatherTitleLbl = ttk.Label(self, text="Weather for Kirtland, OH", font=LARGE_FONT)
+        weatherTitleLbl.grid(row=1, column=1, sticky="N", pady=(40, 10))
 
-        # update I/O values
-        t = IOUpdateLabel(test, 0.5)
-        t.daemon = True
-        t.start()
+        condLbl = ttk.Label(self, text="", font=LARGE_FONT)
+        condLbl.grid(row=2, column=1, sticky="N", pady=10)
 
-        audioLbl = ttk.Label(self, text="Audio Experiments", font=LARGE_FONT)
+        tempLbl = ttk.Label(self, text="°F", font=LARGE_FONT)
+        tempLbl.grid(row=3, column=1, sticky="N", pady=10)
+
+        self.yahooAttr = tk.PhotoImage(file="yahooAttr.png")
+        attrLbl = ttk.Label(self, image=self.yahooAttr)
+        attrLbl.grid(row=4, column=1, sticky="N", pady=5)
+
+        # update weather values
+        weatherT = WeatherUpdateLabel(condLbl, tempLbl)
+        weatherT.daemon = True
+        weatherT.start()
+
+        audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT)
         self.audioIcon = tk.PhotoImage(file="headphones.png")
         audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
-        audioLbl.grid(row=2, column=0, sticky="W", padx=(110, 0), pady=10)
-        audioBtn.grid(row=3, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
+        audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=10)
+        audioBtn.grid(row=6, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
 
-        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=LARGE_FONT)
+        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
         self.batteryIcon = tk.PhotoImage(file="battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
-        batteryLbl.grid(row=2, column=2, sticky="E", padx=(0, 105), pady=10)
-        batteryBtn.grid(row=3, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
+        batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=10)
+        batteryBtn.grid(row=6, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
 
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(4, weight=1)
 
 '''
     Audio Page
@@ -122,25 +163,25 @@ class AudioPage(ttk.Frame):
         audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT)
         audioTitle.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
-        playLbl = ttk.Label(self, text="Play Audio", font=LARGE_FONT)
+        playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT)
         self.playIcon = tk.PhotoImage(file="headphones.png")
         playBtn = ttk.Button(self, image=self.playIcon, command = self.play)
         playLbl.grid(row=1, column=0, pady=(60, 0))
         playBtn.grid(row=2, column=0, pady=(10, 40))
 
-        stopLbl = ttk.Label(self, text="Stop Audio", font=LARGE_FONT)
+        stopLbl = ttk.Label(self, text="Stop Audio", font=MED_FONT)
         self.stopIcon = tk.PhotoImage(file="headphones.png")
         stopBtn = ttk.Button(self, image=self.stopIcon, command = self.stop)
         stopLbl.grid(row=1, column=2, pady=(60, 0))
         stopBtn.grid(row=2, column=2, pady=(10, 40))
 
-        homeLbl = ttk.Label(self, text="Back", font=LARGE_FONT)
+        homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
         self.homeIcon = tk.PhotoImage(file="home.png")
         homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
         homeLbl.grid(row=3, column=0, sticky="W", padx=(160, 20), pady=10)
         homeBtn.grid(row=4, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
-        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=LARGE_FONT)
+        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
         self.batteryIcon = tk.PhotoImage(file="battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=3, column=2, sticky="E", padx=(20, 105), pady=10)
@@ -160,11 +201,15 @@ class AudioPage(ttk.Frame):
     def play(self):
         # start audio
         self.playThread._stop.clear()
+        # disable pitch class buttons
+        # TODO
 
     # stops audio composition
     def stop(self):
         # stop audio
         self.playThread.stop()
+        # disable pitch class buttons
+        # TODO
 
 '''
     Audio Play Thread
@@ -193,7 +238,10 @@ class AudioPlayThread(threading.Thread):
 'E5':659.25, 'F5':698.46, 'Fs5/Gb5':739.99, 'G5':783.99, 'Gs5/Ab5':830.61,
 'A5':880.00, 'As5/Bb5':932.33, 'B5':987.77, 'C6':1046.50 }
 
-        self.pClass = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+        blues4 = ['C4', 'Ds4/Eb4', 'F4', 'Fs5/Gb5', 'G4', 'As4/Bb4', 'C5']
+        pentatonic4 = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+        self.pClass = blues4
+
 
         # create dictionary of pitch frequencies I have chosen
         self.myPitches = self.p2f.fromkeys(self.pClass)
@@ -208,23 +256,32 @@ class AudioPlayThread(threading.Thread):
         s.setStrikePosition(0.1)
         s.preset(1)
 
-        self.calcPitch(1)
-
         while True:
             # what will actually be playing
             while not self.stopped():
+                # "read" current level
                 curVal = math.floor(65535 * random.random())
 
                 # set tempo
                 self.beat = self.calcTempo(curVal)
 
-                BeatsPerMeasure = 4
-                while BeatsPerMeasure > 0:
+                self.BeatsPerMeasure = 4
+
+                # "read" voltage level
+                volVal = math.floor(65535 * random.random())
+
+                # calculate subdivisions
+                self.calcSubdivisions(volVal, curVal)
+
+                # use subdivisions to determine length of "measure" iteration
+                self.measureCtr = ((self.BeatsPerMeasure/4) * self.numSubs)
+
+                while self.measureCtr > 0:
                     volVal = math.floor(65535 * random.random())
                     s.setFrequency(self.myPitches[self.calcPitch(volVal)])
                     s.strike(0.5)
-                    wait(self.beat)
-                    BeatsPerMeasure -= 1
+                    wait(self.wait)
+                    self.measureCtr -= 1
 
         # disconnect instruments
         s.disconnect()
@@ -238,10 +295,28 @@ class AudioPlayThread(threading.Thread):
     def calcPitch(self, val):
         # map incoming voltage values [0 - 65535]
         # to freq [variable based on myPitches range of freq]
-        self.freq = 261.63 + (261.62 * (val/65535))
+        self.freq = self.myPitches[self.pClass[0]] + ((self.myPitches[self.pClass[len(self.myPitches) - 1]] - self.myPitches[self.pClass[0]]) * (val/65535))
         # return pitch in myPitches closest to freq
         return min(self.myPitches, key=lambda y:abs(float(self.myPitches[y]) - self.freq))
 
+    def calcSubdivisions(self, volVal, curVal):
+        MAX_PWR = 4294967296
+        pwrVal = (volVal + 1) * (curVal + 1)
+        # map "power" (i.e. the product of voltage and current values) [0 - 4294967296]
+        if pwrVal > 0 and pwrVal < (MAX_PWR / 5):
+            self.wait = 4 * self.beat
+        elif pwrVal > (MAX_PWR / 5) and pwrVal < (2*(MAX_PWR / 5)):
+            self.wait = 2 * self.beat
+        elif pwrVal > (2*(MAX_PWR / 5)) and pwrVal < (3*(MAX_PWR / 5)):
+            self.wait = self.beat
+        elif pwrVal > (3*(MAX_PWR / 5)) and pwrVal < (4*(MAX_PWR / 5)):
+            self.wait = (1/2) * self.beat
+        elif pwrVal > (4*(MAX_PWR / 5)) and pwrVal < MAX_PWR:
+            self.wait = (1/4) * self.beat
+        else:
+            self.wait = self.beat
+
+        self.numSubs = 4 / (self.wait/self.beat)
 '''
     Battery Page
         Page for the battery diagnostics
