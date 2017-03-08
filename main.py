@@ -102,7 +102,7 @@ class WeatherUpdateLabel(threading.Thread):
         while True:
             # Open URL and grab data
             result = urllib.request.urlopen(yql_url).read()
-            data = json.loads(result)
+            data = json.loads(result.decode("utf-8"))
             conditions = data['query']['results']['channel']['item']['condition']
             self.tempLbl.config(text=str(conditions['temp']) + "°F")
             self.condLbl.config(text=str(conditions['text']))
