@@ -24,6 +24,7 @@ class DisplayApp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+
         container = ttk.Frame(self)
 
         container.pack(side = "top", fill = "both", expand = True)
@@ -114,21 +115,26 @@ class WeatherUpdateLabel(threading.Thread):
 class LandingPage(ttk.Frame):
 
     def __init__(self, parent, controller):
-        ttk.Frame.__init__(self, parent)
-        title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT)
+        gui_style = ttk.Style()
+        gui_style.configure('My.TFrame', background='#e8feff')
+        gui_style.configure('My.TLabel', background='#e8feff')
+
+
+        ttk.Frame.__init__(self, parent, style="My.TFrame")
+        title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My.TLabel")
         title.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
-        weatherTitleLbl = ttk.Label(self, text="Weather for Kirtland, OH", font=LARGE_FONT)
+        weatherTitleLbl = ttk.Label(self, text="Weather for Kirtland, OH", font=LARGE_FONT, style="My.TLabel")
         weatherTitleLbl.grid(row=1, column=1, sticky="N", pady=(40, 10))
 
-        condLbl = ttk.Label(self, text="", font=LARGE_FONT)
+        condLbl = ttk.Label(self, text="", font=LARGE_FONT, style="My.TLabel")
         condLbl.grid(row=2, column=1, sticky="N", pady=10)
 
-        tempLbl = ttk.Label(self, text="°F", font=LARGE_FONT)
+        tempLbl = ttk.Label(self, text="°F", font=LARGE_FONT, style="My.TLabel")
         tempLbl.grid(row=3, column=1, sticky="N", pady=10)
 
         self.yahooAttr = tk.PhotoImage(file="yahooAttr.png")
-        attrLbl = ttk.Label(self, image=self.yahooAttr)
+        attrLbl = ttk.Label(self, image=self.yahooAttr, style="My.TLabel")
         attrLbl.grid(row=4, column=1, sticky="N", pady=5)
 
         # update weather values
@@ -136,13 +142,13 @@ class LandingPage(ttk.Frame):
         weatherT.daemon = True
         weatherT.start()
 
-        audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT)
+        audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My.TLabel")
         self.audioIcon = tk.PhotoImage(file="headphones.png")
         audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
         audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=10)
         audioBtn.grid(row=6, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
 
-        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
+        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT, style="My.TLabel")
         self.batteryIcon = tk.PhotoImage(file="battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=10)
@@ -260,7 +266,7 @@ class AudioPlayThread(threading.Thread):
             # what will actually be playing
             while not self.stopped():
                 # "read" current level
-                curVal = math.floor(65535 * random.random())
+                curVal = math.floor(50000 + (15535 * random.random()))
 
                 # set tempo
                 self.beat = self.calcTempo(curVal)
