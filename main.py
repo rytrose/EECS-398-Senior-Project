@@ -1,13 +1,23 @@
+#!/usr/bin/python3
+
+# GUI imports
 import tkinter as tk
 from tkinter import ttk
+
+# ChucK and music-utilized imports
 from chuck import *
 import time
 import random
 import math
+
 import threading
 import os
+
+# Weather getting imports
 import urllib.request, urllib.parse, json
 
+# ADC import
+import Adafruit_ADS1x15
 
 MED_FONT = ("Verdana", "12")
 LARGE_FONT = ("Verdana", "18")
@@ -65,22 +75,17 @@ class DisplayApp(tk.Tk):
         Allows for labels that update in response to IO
             Inputs:
                 lbl - label to be updated
-                pin - pin to read from
                 updateInt - time (in sec) to refresh, assuming instantaneous IO reads
 '''
-class IOUpdateLabel(threading.Thread):
-    def __init__(self, lbl, pin, updateInt):
+
+class IOLabelUpdate(threading.Thread):
+    def __init__(self, lbl, updateInt):
         threading.Thread.__init__(self)
-        self.lbl = lbl
-        self.pin = pin
-        self.updateInt = updateInt
+        self.adc = adc
 
     def run(self):
-        # CONSTANTLY GET UPDATED VALUE FROM I/O
-        while True:
-            self.lbl.config(text="TODO")
-            time.sleep(self.updateInt)
-
+        time.sleep(1)
+        
 '''
     Weather Label Update Class
         Contains Yahoo! Weather code and updates weather every minute
@@ -94,6 +99,9 @@ class WeatherUpdateLabel(threading.Thread):
         self.tempLbl = tempLbl
 
     def run(self):
+        # Wait to ensure internet connection on boot
+        time.sleep(10)
+        
         # Initialize Yahoo! Weather
         baseurl = "https://query.yahooapis.com/v1/public/yql?"
         yql_query = "select item.condition from weather.forecast where woeid=2433149"
@@ -133,23 +141,23 @@ class LandingPage(ttk.Frame):
         tempLbl = ttk.Label(self, text="°F", font=LARGE_FONT, style="My.TLabel")
         tempLbl.grid(row=3, column=1, sticky="N", pady=10)
 
-        self.yahooAttr = tk.PhotoImage(file="yahooAttr.png")
+        self.yahooAttr = tk.PhotoImage(file="/home/pi/SPC/yahooAttr.png")
         attrLbl = ttk.Label(self, image=self.yahooAttr, style="My.TLabel")
         attrLbl.grid(row=4, column=1, sticky="N", pady=5)
 
-        # update weather values
+        # Update weather values
         weatherT = WeatherUpdateLabel(condLbl, tempLbl)
         weatherT.daemon = True
         weatherT.start()
 
         audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My.TLabel")
-        self.audioIcon = tk.PhotoImage(file="headphones.png")
+        self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
         audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=10)
         audioBtn.grid(row=6, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT, style="My.TLabel")
-        self.batteryIcon = tk.PhotoImage(file="battery.png")
+        self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=10)
         batteryBtn.grid(row=6, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
@@ -170,25 +178,25 @@ class AudioPage(ttk.Frame):
         audioTitle.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
         playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT)
-        self.playIcon = tk.PhotoImage(file="headphones.png")
+        self.playIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         playBtn = ttk.Button(self, image=self.playIcon, command = self.play)
         playLbl.grid(row=1, column=0, pady=(60, 0))
         playBtn.grid(row=2, column=0, pady=(10, 40))
 
         stopLbl = ttk.Label(self, text="Stop Audio", font=MED_FONT)
-        self.stopIcon = tk.PhotoImage(file="headphones.png")
+        self.stopIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         stopBtn = ttk.Button(self, image=self.stopIcon, command = self.stop)
         stopLbl.grid(row=1, column=2, pady=(60, 0))
         stopBtn.grid(row=2, column=2, pady=(10, 40))
 
         homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
-        self.homeIcon = tk.PhotoImage(file="home.png")
+        self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
         homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
         homeLbl.grid(row=3, column=0, sticky="W", padx=(160, 20), pady=10)
         homeBtn.grid(row=4, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
-        self.batteryIcon = tk.PhotoImage(file="battery.png")
+        self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=3, column=2, sticky="E", padx=(20, 105), pady=10)
         batteryBtn.grid(row=4, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
@@ -232,6 +240,22 @@ class AudioPlayThread(threading.Thread):
         return self._stop.isSet()
 
     def run(self):
+        # Setup ADC
+        adc = Adafruit_ADS1x15.ADS1115()
+
+        # GAIN VALUES
+        #  - 2/3 = +/-6.144V
+        #  -   1 = +/-4.096V
+        #  -   2 = +/-2.048V
+        #  -   4 = +/-1.024V
+        #  -   8 = +/-0.512V
+        #  -  16 = +/-0.256V
+        GAIN = 2/3
+
+        # Setup channels
+        VOLTAGE = 0
+        CURRENT = 1
+        
         # pitch-to-freq dictionary
         self.p2f = { 'C2':65.41, 'Cs2/Db2':69.30, 'D2':73.42, 'Ds2/Eb2':77.78, 'E2':82.41,
 'F2':87.31, 'Fs2/Gb2':92.50, 'G2':98.00, 'Gs2/Ab2':103.83, 'A2':110.00,
@@ -265,16 +289,18 @@ class AudioPlayThread(threading.Thread):
         while True:
             # what will actually be playing
             while not self.stopped():
-                # "read" current level
-                curVal = math.floor(50000 + (15535 * random.random()))
+                # read current level
+                curVal = 32768 + adc.read_adc(CURRENT, gain=GAIN)
+                #curVal = math.floor(50000 + (15535 * random.random()))
 
                 # set tempo
                 self.beat = self.calcTempo(curVal)
 
                 self.BeatsPerMeasure = 4
 
-                # "read" voltage level
-                volVal = math.floor(65535 * random.random())
+                # read voltage level
+                volVal = 32768 + adc.read_adc(VOLTAGE, gain=GAIN)
+                #volVal = math.floor(65535 * random.random())
 
                 # calculate subdivisions
                 self.calcSubdivisions(volVal, curVal)
