@@ -81,7 +81,6 @@ class DisplayApp(tk.Tk):
 class IOLabelUpdate(threading.Thread):
     def __init__(self, lbl, updateInt):
         threading.Thread.__init__(self)
-        self.adc = adc
 
     def run(self):
         time.sleep(1)
@@ -241,16 +240,16 @@ class AudioPlayThread(threading.Thread):
 
     def run(self):
         # Setup ADC
-        adc = Adafruit_ADS1x15.ADS1115()
-
-        # GAIN VALUES
+        self.adc = Adafruit_ADS1x15.ADS1115()
+        
+        # ADC GAIN VALUES
         #  - 2/3 = +/-6.144V
         #  -   1 = +/-4.096V
         #  -   2 = +/-2.048V
         #  -   4 = +/-1.024V
         #  -   8 = +/-0.512V
         #  -  16 = +/-0.256V
-        GAIN = 2/3
+        GAIN = 1
 
         # Setup channels
         VOLTAGE = 0
@@ -290,8 +289,8 @@ class AudioPlayThread(threading.Thread):
             # what will actually be playing
             while not self.stopped():
                 # read current level
-                curVal = 32768 + adc.read_adc(CURRENT, gain=GAIN)
-                #curVal = math.floor(50000 + (15535 * random.random()))
+                curVal = self.adc.read_adc(CURRENT, gain=GAIN)
+                print("curVal: " + str(curVal))
 
                 # set tempo
                 self.beat = self.calcTempo(curVal)
@@ -299,8 +298,8 @@ class AudioPlayThread(threading.Thread):
                 self.BeatsPerMeasure = 4
 
                 # read voltage level
-                volVal = 32768 + adc.read_adc(VOLTAGE, gain=GAIN)
-                #volVal = math.floor(65535 * random.random())
+                volVal = self.adc.read_adc(VOLTAGE, gain=GAIN)
+                print("volVal: " + str(volVal))
 
                 # calculate subdivisions
                 self.calcSubdivisions(volVal, curVal)
@@ -309,7 +308,6 @@ class AudioPlayThread(threading.Thread):
                 self.measureCtr = ((self.BeatsPerMeasure/4) * self.numSubs)
 
                 while self.measureCtr > 0:
-                    volVal = math.floor(65535 * random.random())
                     s.setFrequency(self.myPitches[self.calcPitch(volVal)])
                     s.strike(0.5)
                     wait(self.wait)
@@ -319,22 +317,22 @@ class AudioPlayThread(threading.Thread):
         s.disconnect()
 
     def calcTempo(self, val):
-        # map incoming current values [0 - 65535]
+        # map incoming current values [0 - 25000]
         # to [1 - 0.25][sec]
         # or [60 BPM - 240 BPM]
-        return 1 - ((val/65535) * 0.75)
+        return 1 - ((val/25000) * 0.75)
 
     def calcPitch(self, val):
-        # map incoming voltage values [0 - 65535]
+        # map incoming voltage values [0 - 25000]
         # to freq [variable based on myPitches range of freq]
-        self.freq = self.myPitches[self.pClass[0]] + ((self.myPitches[self.pClass[len(self.myPitches) - 1]] - self.myPitches[self.pClass[0]]) * (val/65535))
+        self.freq = self.myPitches[self.pClass[0]] + ((self.myPitches[self.pClass[len(self.myPitches) - 1]] - self.myPitches[self.pClass[0]]) * (val/25000))
         # return pitch in myPitches closest to freq
         return min(self.myPitches, key=lambda y:abs(float(self.myPitches[y]) - self.freq))
 
     def calcSubdivisions(self, volVal, curVal):
-        MAX_PWR = 4294967296
+        MAX_PWR = 25000 * 25000
         pwrVal = (volVal + 1) * (curVal + 1)
-        # map "power" (i.e. the product of voltage and current values) [0 - 4294967296]
+        # map "power" (i.e. the product of voltage and current values) [0 - 25000 * 25000]
         if pwrVal > 0 and pwrVal < (MAX_PWR / 5):
             self.wait = 4 * self.beat
         elif pwrVal > (MAX_PWR / 5) and pwrVal < (2*(MAX_PWR / 5)):
