@@ -19,6 +19,10 @@ import urllib.request, urllib.parse, json
 # ADC import
 import Adafruit_ADS1x15
 
+# Pitch set global variable and mutex
+c = threading.Condition()
+ps = 0
+
 MED_FONT = ("Verdana", "12")
 LARGE_FONT = ("Verdana", "18")
 TITLE_FONT = ("Verdana", "24")
@@ -69,21 +73,6 @@ class DisplayApp(tk.Tk):
         self.state = False
         self.attributes("-fullscreen", False)
         return "break"
-
-'''
-    IO Label Update Class
-        Allows for labels that update in response to IO
-            Inputs:
-                lbl - label to be updated
-                updateInt - time (in sec) to refresh, assuming instantaneous IO reads
-'''
-
-class IOLabelUpdate(threading.Thread):
-    def __init__(self, lbl, updateInt):
-        threading.Thread.__init__(self)
-
-    def run(self):
-        time.sleep(1)
         
 '''
     Weather Label Update Class
@@ -173,6 +162,7 @@ class AudioPage(ttk.Frame):
 
     def __init__(self, parent, controller):
         ttk.Frame.__init__(self, parent)
+
         audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT)
         audioTitle.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
@@ -188,17 +178,24 @@ class AudioPage(ttk.Frame):
         stopLbl.grid(row=1, column=2, pady=(60, 0))
         stopBtn.grid(row=2, column=2, pady=(10, 40))
 
+        self.pitchBtnL = ttk.Button(self, text="<--", command = lambda: self.changePitches(0))
+        self.pitchBtnR = ttk.Button(self, text="-->", command = lambda: self.changePitches(1))
+        self.pitchLbl = ttk.Label(self, text="Blues", font=MED_FONT)
+        self.pitchBtnL.grid(row=3, column=0)
+        self.pitchLbl.grid(row=3, column=1, padx=5)
+        self.pitchBtnR.grid(row=3, column=2)
+
         homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
         self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
         homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
-        homeLbl.grid(row=3, column=0, sticky="W", padx=(160, 20), pady=10)
-        homeBtn.grid(row=4, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
+        homeLbl.grid(row=4, column=0, sticky="W", padx=(160, 20), pady=10)
+        homeBtn.grid(row=5, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
         self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
-        batteryLbl.grid(row=3, column=2, sticky="E", padx=(20, 105), pady=10)
-        batteryBtn.grid(row=4, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
+        batteryLbl.grid(row=4, column=2, sticky="E", padx=(20, 105), pady=10)
+        batteryBtn.grid(row=5, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
 
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
@@ -210,8 +207,36 @@ class AudioPage(ttk.Frame):
         self.playThread.stop()
         self.playThread.start()
 
+        # create pitch label thread
+        self.pitchLblThread = PitchLabelUpdate(self.pitchLbl)
+        self.pitchLblThread.daemon = True
+        self.pitchLblThread.start()
+
+    # changes the pitch set
+    def changePitches(self, lr):
+        # Establish global pitch set variable
+        global ps
+        
+        c.acquire()
+        print("lr: " + str(lr))
+        if lr == 0:
+            if ps > 0:
+                ps -= 1
+            else:
+                ps = 2
+        if lr == 1:
+            if ps < 2:
+                ps += 1
+            else:
+                ps = 0
+        c.release()
+        
+
     # plays audio composition
     def play(self):
+        # disable change pitches
+        self.pitchBtnL.state(["disabled"])
+        self.pitchBtnR.state(["disabled"])
         # start audio
         self.playThread._stop.clear()
         # disable pitch class buttons
@@ -219,10 +244,42 @@ class AudioPage(ttk.Frame):
 
     # stops audio composition
     def stop(self):
+        # enable change pitches
+        self.pitchBtnL.state(["!disabled"])
+        self.pitchBtnR.state(["!disabled"])
         # stop audio
         self.playThread.stop()
         # disable pitch class buttons
         # TODO
+
+'''
+    Pitch Label Update Class
+        Allows for pitch label to be updated
+            Inputs:
+                pitchLbl - label to be updated
+'''
+
+class PitchLabelUpdate(threading.Thread):
+    def __init__(self, pitchLbl):
+        threading.Thread.__init__(self)
+        self.pitchLbl = pitchLbl
+
+    def run(self):
+        # Establish global pitch set variable
+        global ps
+
+        while True:
+            c.acquire()
+            if ps == 0:
+                self.pitchLbl.config(text="Blues")
+            elif ps == 1:
+                self.pitchLbl.config(text="Pentatonic")
+            elif ps == 2:
+                self.pitchLbl.config(text="Wholetone")
+            else:
+                self.pitchLbl.config(text="ERROR")
+            c.release()
+            wait(0.1)
 
 '''
     Audio Play Thread
@@ -239,7 +296,10 @@ class AudioPlayThread(threading.Thread):
         return self._stop.isSet()
 
     def run(self):
-        # Setup ADC
+        # setup global pitch set variable
+        global ps
+        
+        # setup ADC
         self.adc = Adafruit_ADS1x15.ADS1115()
         
         # ADC GAIN VALUES
@@ -267,12 +327,14 @@ class AudioPlayThread(threading.Thread):
 'E5':659.25, 'F5':698.46, 'Fs5/Gb5':739.99, 'G5':783.99, 'Gs5/Ab5':830.61,
 'A5':880.00, 'As5/Bb5':932.33, 'B5':987.77, 'C6':1046.50 }
 
-        blues4 = ['C4', 'Ds4/Eb4', 'F4', 'Fs5/Gb5', 'G4', 'As4/Bb4', 'C5']
+        blues4 = ['C4', 'Ds4/Eb4', 'F4', 'Fs4/Gb4', 'G4', 'As4/Bb4', 'C5']
         pentatonic4 = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+        wholetone4 = ['C4', 'D4', 'E4', 'Fs4/Gb4', 'Gs4/Ab4', 'As4/Bb4', 'C5']
+
+        # default
         self.pClass = blues4
 
-
-        # create dictionary of pitch frequencies I have chosen
+        # create dictionary of pitch frequencies
         self.myPitches = self.p2f.fromkeys(self.pClass)
         for key in self.myPitches:
             self.myPitches[key] = self.p2f[key]
@@ -286,10 +348,27 @@ class AudioPlayThread(threading.Thread):
         s.preset(1)
 
         while True:
+            c.acquire()
+            if ps == 0:
+                self.pClass = blues4
+            elif ps == 1:
+                self.pClass = pentatonic4
+            elif ps == 2:
+                self.pClass = wholetone4
+            else:
+                self.pClass = ['C4']
+            c.release()
+
+            # recreate dictionary of pitch frequencies
+            self.myPitches = self.p2f.fromkeys(self.pClass)
+            for key in self.myPitches:
+                self.myPitches[key] = self.p2f[key]
+            
             # what will actually be playing
             while not self.stopped():
                 # read current level
-                curVal = self.adc.read_adc(CURRENT, gain=GAIN)
+                #curVal = self.adc.read_adc(CURRENT, gain=GAIN)
+                curVal = math.floor(12000 + (15535 * random.random()))
                 print("curVal: " + str(curVal))
 
                 # set tempo
@@ -298,7 +377,8 @@ class AudioPlayThread(threading.Thread):
                 self.BeatsPerMeasure = 4
 
                 # read voltage level
-                volVal = self.adc.read_adc(VOLTAGE, gain=GAIN)
+                #volVal = self.adc.read_adc(VOLTAGE, gain=GAIN)
+                volVal = math.floor(12000 + (15535 * random.random()))
                 print("volVal: " + str(volVal))
 
                 # calculate subdivisions
