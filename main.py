@@ -23,12 +23,33 @@ import Adafruit_ADS1x15
 c = threading.Condition()
 ps = 0
 
+# setup ADC
+adc = Adafruit_ADS1x15.ADS1115()
+
+# ADC GAIN VALUES
+#  - 2/3 = +/-6.144V
+#  -   1 = +/-4.096V
+#  -   2 = +/-2.048V
+#  -   4 = +/-1.024V
+#  -   8 = +/-0.512V
+#  -  16 = +/-0.256V
+GAIN = 1
+
+# setup channels
+VOLTAGE = 0
+CURRENT = 1
+
+# setup fonts
+SM_FONT = ("Verdana", "11")
 MED_FONT = ("Verdana", "12")
 LARGE_FONT = ("Verdana", "18")
 TITLE_FONT = ("Verdana", "24")
 
 # init ChucK
 init()
+
+# seed random
+random.seed(None)
 
 '''
     Main GUI Class
@@ -73,7 +94,20 @@ class DisplayApp(tk.Tk):
         self.state = False
         self.attributes("-fullscreen", False)
         return "break"
-        
+
+''''
+     Page
+        Home page once the display enters user mode
+
+class AutoPage(ttk.Frame):
+
+    def __init__(self, parent, controller):
+        gui_style = ttk.Style()
+        gui_style.configure('My.TFrame', background='#e8feff')
+        gui_style.configure('My.TLabel', background='#e8feff')
+
+        self.bind("<Button-1>", lambda: controller.show_frame(LandingPage))
+'''        
 '''
     Weather Label Update Class
         Contains Yahoo! Weather code and updates weather every minute
@@ -104,6 +138,31 @@ class WeatherUpdateLabel(threading.Thread):
             self.condLbl.config(text=str(conditions['text']))
             time.sleep(60)
 
+'''
+    Panel Label Update Class
+        Updates the labels displaying live panel information
+            Inputs:
+                volLbl - voltage label to be updated
+                curLbl - current label to be updated
+                interval - interval of time between updates
+
+'''
+class PanelUpdateLabel(threading.Thread):
+    def __init__(self, volLbl, curLbl, interval):
+        threading.Thread.__init__(self)
+        self.volLbl = volLbl
+        self.curLbl = curLbl
+        self.interval = interval
+
+    def run(self):
+        while True:
+            self.volLbl.config(text=str(round(random.random(), 4))  + " Volts")
+            self.curLbl.config(text=str(round(random.random(), 4))  + " Amps") 
+            
+            # self.volLbl.config(text=str(adc.read_adc(VOLTAGE, gain=GAIN) + " Volts"))
+            # self.curLbl.config(text=str(adc.read_adc(CURRENT, gain=GAIN) + " Amps"))
+            time.sleep(self.interval)
+
 ''''
     Landing Page
         Home page once the display enters user mode
@@ -114,7 +173,6 @@ class LandingPage(ttk.Frame):
         gui_style = ttk.Style()
         gui_style.configure('My.TFrame', background='#e8feff')
         gui_style.configure('My.TLabel', background='#e8feff')
-
 
         ttk.Frame.__init__(self, parent, style="My.TFrame")
         title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My.TLabel")
@@ -133,7 +191,7 @@ class LandingPage(ttk.Frame):
         attrLbl = ttk.Label(self, image=self.yahooAttr, style="My.TLabel")
         attrLbl.grid(row=4, column=1, sticky="N", pady=5)
 
-        # Update weather values
+        # update weather values
         weatherT = WeatherUpdateLabel(condLbl, tempLbl)
         weatherT.daemon = True
         weatherT.start()
@@ -150,6 +208,29 @@ class LandingPage(ttk.Frame):
         batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=10)
         batteryBtn.grid(row=6, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
 
+        # frame for panel values
+        panelFrame = ttk.Frame(self, style="My.TFrame")
+        panelFrame.grid(row=6, column=1, sticky="NSEW")
+
+        # label for panel values
+        volDescLbl = ttk.Label(panelFrame, text="Voltage from Solar Panel", font=SM_FONT, style="My.TLabel")
+        curDescLbl = ttk.Label(panelFrame, text="Amperage from Solar Panel", font=SM_FONT, style="My.TLabel")
+        volLbl = ttk.Label(panelFrame, text=" Volts", font=MED_FONT, style="My.TLabel")
+        curLbl = ttk.Label(panelFrame, text=" Amps", font=MED_FONT, style="My.TLabel")
+        volDescLbl.grid(row=0, column=1)
+        curDescLbl.grid(row=0, column=3)
+        volLbl.grid(row=1, column=1, pady=(40, 0))
+        curLbl.grid(row=1, column=3, pady=(40, 0))
+
+        panelFrame.grid_columnconfigure(0, weight=1)
+        panelFrame.grid_columnconfigure(2, weight=1)
+        panelFrame.grid_columnconfigure(4, weight=1)
+        
+        # update panel values
+        panelT = PanelUpdateLabel(volLbl, curLbl, 2)
+        panelT.daemon = True
+        panelT.start()
+
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(4, weight=1)
@@ -164,43 +245,52 @@ class AudioPage(ttk.Frame):
         ttk.Frame.__init__(self, parent)
 
         audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT)
-        audioTitle.grid(row=0, column=1, sticky="N", pady=(60, 0))
+        audioTitle.grid(row=0, column=1, sticky="N", pady=(40, 0))
 
         playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT)
         self.playIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         playBtn = ttk.Button(self, image=self.playIcon, command = self.play)
-        playLbl.grid(row=1, column=0, pady=(60, 0))
-        playBtn.grid(row=2, column=0, pady=(10, 40))
+        playLbl.grid(row=1, column=0, pady=(10, 0))
+        playBtn.grid(row=2, column=0, pady=(10, 10))
 
         stopLbl = ttk.Label(self, text="Stop Audio", font=MED_FONT)
         self.stopIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         stopBtn = ttk.Button(self, image=self.stopIcon, command = self.stop)
-        stopLbl.grid(row=1, column=2, pady=(60, 0))
-        stopBtn.grid(row=2, column=2, pady=(10, 40))
-
-        self.pitchBtnL = ttk.Button(self, text="<--", command = lambda: self.changePitches(0))
-        self.pitchBtnR = ttk.Button(self, text="-->", command = lambda: self.changePitches(1))
-        self.pitchLbl = ttk.Label(self, text="Blues", font=MED_FONT)
-        self.pitchBtnL.grid(row=3, column=0)
-        self.pitchLbl.grid(row=3, column=1, padx=5)
-        self.pitchBtnR.grid(row=3, column=2)
+        stopLbl.grid(row=1, column=2, pady=(10, 0))
+        stopBtn.grid(row=2, column=2, pady=(10, 10))
 
         homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
         self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
         homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
-        homeLbl.grid(row=4, column=0, sticky="W", padx=(160, 20), pady=10)
+        homeLbl.grid(row=4, column=0, sticky="W", padx=(160, 20), pady=(10, 0))
         homeBtn.grid(row=5, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
         self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
-        batteryLbl.grid(row=4, column=2, sticky="E", padx=(20, 105), pady=10)
+        batteryLbl.grid(row=4, column=2, sticky="E", padx=(20, 105), pady=(10, 0))
         batteryBtn.grid(row=5, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
 
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
+        pitchFrame = ttk.Frame(self)
+        pitchFrame.grid(row=3, column=1, sticky="NSEW")
+
+        self.pitchDescLbl = ttk.Label(pitchFrame, text="Change Pitch Set", font=MED_FONT)
+        self.pitchBtnL = ttk.Button(pitchFrame, text="<--", command = lambda: self.changePitches(0))
+        self.pitchBtnR = ttk.Button(pitchFrame, text="-->", command = lambda: self.changePitches(1))
+        self.pitchLbl = ttk.Label(pitchFrame, text="Blues", font=MED_FONT)
+        self.pitchDescLbl.grid(row=0, column=2, pady=(0, 5))
+        self.pitchBtnL.grid(row=1, column=1)
+        self.pitchLbl.grid(row=1, column=2, padx=15)
+        self.pitchBtnR.grid(row=1, column=3)
+
+        # grid weights for centering
+        pitchFrame.grid_columnconfigure(0, weight=1)
+        pitchFrame.grid_columnconfigure(4, weight=1)
+            
         # create audio thread
         self.playThread = AudioPlayThread()
         self.playThread.daemon = True
@@ -218,7 +308,6 @@ class AudioPage(ttk.Frame):
         global ps
         
         c.acquire()
-        print("lr: " + str(lr))
         if lr == 0:
             if ps > 0:
                 ps -= 1
@@ -239,8 +328,6 @@ class AudioPage(ttk.Frame):
         self.pitchBtnR.state(["disabled"])
         # start audio
         self.playThread._stop.clear()
-        # disable pitch class buttons
-        # TODO
 
     # stops audio composition
     def stop(self):
@@ -249,8 +336,6 @@ class AudioPage(ttk.Frame):
         self.pitchBtnR.state(["!disabled"])
         # stop audio
         self.playThread.stop()
-        # disable pitch class buttons
-        # TODO
 
 '''
     Pitch Label Update Class
@@ -279,7 +364,7 @@ class PitchLabelUpdate(threading.Thread):
             else:
                 self.pitchLbl.config(text="ERROR")
             c.release()
-            wait(0.1)
+            wait(0.11)
 
 '''
     Audio Play Thread
@@ -297,24 +382,8 @@ class AudioPlayThread(threading.Thread):
 
     def run(self):
         # setup global pitch set variable
-        global ps
-        
-        # setup ADC
-        self.adc = Adafruit_ADS1x15.ADS1115()
-        
-        # ADC GAIN VALUES
-        #  - 2/3 = +/-6.144V
-        #  -   1 = +/-4.096V
-        #  -   2 = +/-2.048V
-        #  -   4 = +/-1.024V
-        #  -   8 = +/-0.512V
-        #  -  16 = +/-0.256V
-        GAIN = 1
-
-        # Setup channels
-        VOLTAGE = 0
-        CURRENT = 1
-        
+        global ps 
+               
         # pitch-to-freq dictionary
         self.p2f = { 'C2':65.41, 'Cs2/Db2':69.30, 'D2':73.42, 'Ds2/Eb2':77.78, 'E2':82.41,
 'F2':87.31, 'Fs2/Gb2':92.50, 'G2':98.00, 'Gs2/Ab2':103.83, 'A2':110.00,
@@ -327,48 +396,55 @@ class AudioPlayThread(threading.Thread):
 'E5':659.25, 'F5':698.46, 'Fs5/Gb5':739.99, 'G5':783.99, 'Gs5/Ab5':830.61,
 'A5':880.00, 'As5/Bb5':932.33, 'B5':987.77, 'C6':1046.50 }
 
-        blues4 = ['C4', 'Ds4/Eb4', 'F4', 'Fs4/Gb4', 'G4', 'As4/Bb4', 'C5']
-        pentatonic4 = ['C4', 'D4', 'E4', 'G4', 'A4', 'C5']
-        wholetone4 = ['C4', 'D4', 'E4', 'Fs4/Gb4', 'Gs4/Ab4', 'As4/Bb4', 'C5']
+        blues = ['C2', 'Ds2/Eb2', 'F2', 'Fs2/Gb2', 'G2', 'As2/Bb2', 'C3', 'Ds3/Eb3', 'F3', 'Fs3/Gb3', 'G3', 'As3/Bb3', 'C4', 'Ds4/Eb4', 'F4', 'Fs4/Gb4', 'G4', 'As4/Bb4', 'C5']
+        pentatonic = ['C2', 'D2', 'E2', 'G2', 'A2', 'C3', 'D3', 'E3', 'G3', 'A3', 'C4', 'D4', 'E4', 'G4', 'A4', 'C5']
+        wholetone = ['C2', 'D2', 'E2', 'Fs2/Gb2', 'Gs2/Ab2', 'As2/Bb2', 'C3', 'D3', 'E3', 'Fs3/Gb3', 'Gs3/Ab3', 'As3/Bb3', 'C4', 'D4', 'E4', 'Fs4/Gb4', 'Gs4/Ab4', 'As4/Bb4', 'C5']
 
         # default
-        self.pClass = blues4
+        self.pClass = blues
 
         # create dictionary of pitch frequencies
         self.myPitches = self.p2f.fromkeys(self.pClass)
         for key in self.myPitches:
             self.myPitches[key] = self.p2f[key]
+        # create lists for order
+        self.pitchList = list(self.myPitches.keys())
+        self.freqList = list(self.myPitches.values())
 
         # establish and connect instruments
         s = StruckBar()
         s.connect()
-        s.setVolume(1.0)
-        s.setStickHardness(0.1)
-        s.setStrikePosition(0.1)
-        s.preset(1)
+        s.setVolume(1.0)         # 0.0 <= volume <= 1.0
+        s.setStickHardness(0.1)  # 0.0 <= hardness <= 1.0
+        s.setStrikePosition(0.1) # 0.0 <= position <= 1.0
+        s.preset(1)              # vibraphone
 
         while True:
             c.acquire()
             if ps == 0:
-                self.pClass = blues4
+                self.pClass = blues
             elif ps == 1:
-                self.pClass = pentatonic4
+                self.pClass = pentatonic
             elif ps == 2:
-                self.pClass = wholetone4
+                self.pClass = wholetone
             else:
                 self.pClass = ['C4']
             c.release()
+            wait(0.1)
 
             # recreate dictionary of pitch frequencies
             self.myPitches = self.p2f.fromkeys(self.pClass)
             for key in self.myPitches:
                 self.myPitches[key] = self.p2f[key]
+            # create lists for order
+            self.pitchList = list(self.myPitches.keys())
+            self.freqList = list(self.myPitches.values())
             
             # what will actually be playing
             while not self.stopped():
                 # read current level
-                #curVal = self.adc.read_adc(CURRENT, gain=GAIN)
-                curVal = math.floor(12000 + (15535 * random.random()))
+                # curVal = adc.read_adc(CURRENT, gain=GAIN)
+                curVal = math.floor(12000 + (15000 * random.random()))
                 print("curVal: " + str(curVal))
 
                 # set tempo
@@ -377,8 +453,8 @@ class AudioPlayThread(threading.Thread):
                 self.BeatsPerMeasure = 4
 
                 # read voltage level
-                #volVal = self.adc.read_adc(VOLTAGE, gain=GAIN)
-                volVal = math.floor(12000 + (15535 * random.random()))
+                # volVal = adc.read_adc(VOLTAGE, gain=GAIN)
+                volVal = math.floor(12000 + (15000 * random.random()))
                 print("volVal: " + str(volVal))
 
                 # calculate subdivisions
@@ -388,7 +464,33 @@ class AudioPlayThread(threading.Thread):
                 self.measureCtr = ((self.BeatsPerMeasure/4) * self.numSubs)
 
                 while self.measureCtr > 0:
-                    s.setFrequency(self.myPitches[self.calcPitch(volVal)])
+                    # determine notes
+                    mainPitch = self.calcPitch(volVal)
+                    secPitch = None
+                    terPitch = None
+                    mainIndex = self.pitchList.index(mainPitch)
+                    if mainIndex > 0 and mainIndex < (len(self.pitchList) - 1):
+                        secPitch = self.pitchList[mainIndex - 1]
+                        terPitch = self.pitchList[mainIndex + 1]
+                    elif mainIndex == 0:
+                        secPitch = self.pitchList[mainIndex + 1]
+                        terPitch = self.pitchList[mainIndex + 2]
+                    elif mainIndex == (len(self.pitchList) - 1):
+                        secPitch = self.pitchList[mainIndex - 1]
+                        terPitch = self.pitchList[mainIndex - 2]
+                        
+                    # choose note
+                    rand = random.random()
+                    if rand > 0.0 and rand < 0.15:
+                        s.setFrequency(self.myPitches[secPitch])
+                        print("played sec")
+                    elif rand >= 0.15 and rand <= 0.85:
+                        s.setFrequency(self.myPitches[mainPitch])
+                        print("played main")
+                    else:
+                        s.setFrequency(self.myPitches[terPitch])
+                        print("played ter")
+                    
                     s.strike(0.5)
                     wait(self.wait)
                     self.measureCtr -= 1
@@ -397,31 +499,33 @@ class AudioPlayThread(threading.Thread):
         s.disconnect()
 
     def calcTempo(self, val):
-        # map incoming current values [0 - 25000]
-        # to [1 - 0.25][sec]
-        # or [60 BPM - 240 BPM]
-        return 1 - ((val/25000) * 0.75)
+        # map incoming current values [0 - 27000]
+        # to [1 - 0.3][sec]
+        # or [60 - 200] [BPM]
+        return 1 - ((val/27000) * 0.7)
 
     def calcPitch(self, val):
-        # map incoming voltage values [0 - 25000]
+        # map incoming voltage values [0 - 27000]
         # to freq [variable based on myPitches range of freq]
-        self.freq = self.myPitches[self.pClass[0]] + ((self.myPitches[self.pClass[len(self.myPitches) - 1]] - self.myPitches[self.pClass[0]]) * (val/25000))
+        self.freq = self.myPitches[self.pClass[0]] + ((self.myPitches[self.pClass[len(self.myPitches) - 1]] - self.myPitches[self.pClass[0]]) * (val/27000))
         # return pitch in myPitches closest to freq
-        return min(self.myPitches, key=lambda y:abs(float(self.myPitches[y]) - self.freq))
+        pitch = min(self.myPitches, key=lambda y:abs(float(self.myPitches[y]) - self.freq))
+        return pitch
 
     def calcSubdivisions(self, volVal, curVal):
-        MAX_PWR = 25000 * 25000
+        MAX_PWR = 27000 * 27000
+        PWR_DIV = MAX_PWR / 5
         pwrVal = (volVal + 1) * (curVal + 1)
         # map "power" (i.e. the product of voltage and current values) [0 - 25000 * 25000]
         if pwrVal > 0 and pwrVal < (MAX_PWR / 5):
             self.wait = 4 * self.beat
-        elif pwrVal > (MAX_PWR / 5) and pwrVal < (2*(MAX_PWR / 5)):
+        elif pwrVal > PWR_DIV and pwrVal < (2*PWR_DIV):
             self.wait = 2 * self.beat
-        elif pwrVal > (2*(MAX_PWR / 5)) and pwrVal < (3*(MAX_PWR / 5)):
+        elif pwrVal > (2*PWR_DIV) and pwrVal < (3*PWR_DIV):
             self.wait = self.beat
-        elif pwrVal > (3*(MAX_PWR / 5)) and pwrVal < (4*(MAX_PWR / 5)):
+        elif pwrVal > (3*PWR_DIV) and pwrVal < (4*PWR_DIV):
             self.wait = (1/2) * self.beat
-        elif pwrVal > (4*(MAX_PWR / 5)) and pwrVal < MAX_PWR:
+        elif pwrVal > (4*PWR_DIV) and pwrVal < MAX_PWR:
             self.wait = (1/4) * self.beat
         else:
             self.wait = self.beat
