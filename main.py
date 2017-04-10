@@ -6,26 +6,44 @@ from tkinter import ttk
 
 # ChucK and music-utilized imports
 from chuck import *
+
+# used for sleeping
 import time
+
 import random
 import math
 
+# used for concurrency
 import threading
 import os
 
-# Weather getting imports
+# used for I/O
+import RPi.GPIO as GPIO
+
+# used for weather data acquisition
 import urllib.request, urllib.parse, json
 
 # ADC import
 import Adafruit_ADS1x15
 
-# Pitch set global variable and mutex
+# GPIO mode output pin
+MODE_PIN = 26
+GPIO.setmode(GPIO.BCM)
+
+# setup pin 26 as output
+GPIO.setup(MODE_PIN, GPIO.OUT)
+
+# LOW = auto mode, HIGH = user mode
+# default to auto mode
+GPIO.output(MODE_PIN, GPIO.LOW)
+
+# pitch set global variable and mutex
 c = threading.Condition()
 ps = 0
 
 # Timer global variable and mutex
 c1 = threading.Condition()
-TIMEOUT = 10
+TIMEOUT = 10 # number of seconds before user goes to auto mode
 timer = TIMEOUT
 
 # setup ADC
@@ -91,6 +109,9 @@ class DisplayApp(tk.Tk):
 
     def show_frame(self, cont):
         self.resetTimer()
+        if cont.__name__ != "AutoPage":
+            print("Switching to user mode")
+            GPIO.output(MODE_PIN, GPIO.HIGH)
         frame = self.frames[cont]
         frame.tkraise()
 
@@ -135,6 +156,8 @@ class AutoPage(ttk.Frame):
 
         self.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         title.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+
+        
         
         timerT = TimerThread(controller)
         timerT.daemon = True
@@ -210,6 +233,9 @@ class TimerThread(threading.Thread):
             c.acquire()
             if timer == 0:
                 timer = TIMEOUT
+                # set mode to auto mode
+                print("Switching to auto mode")
+                GPIO.output(MODE_PIN, GPIO.LOW)
                 self.controller.show_frame(AutoPage)
             else:
                 timer -= 1
@@ -225,14 +251,17 @@ class TimerThread(threading.Thread):
 class LandingPage(ttk.Frame):
 
     def __init__(self, parent, controller):
+        # background color
         gui_style = ttk.Style()
         gui_style.configure('My.TFrame', background='#e8feff')
         gui_style.configure('My.TLabel', background='#e8feff')
 
+        # frame and title
         ttk.Frame.__init__(self, parent, style="My.TFrame")
         title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My.TLabel")
         title.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
+        # weather data display
         weatherTitleLbl = ttk.Label(self, text="Weather for Kirtland, OH", font=LARGE_FONT, style="My.TLabel")
         weatherTitleLbl.grid(row=1, column=1, sticky="N", pady=(40, 10))
 
@@ -251,6 +280,7 @@ class LandingPage(ttk.Frame):
         weatherT.daemon = True
         weatherT.start()
 
+        # next page labels/buttons
         audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My.TLabel")
         self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
@@ -267,7 +297,7 @@ class LandingPage(ttk.Frame):
         panelFrame = ttk.Frame(self, style="My.TFrame")
         panelFrame.grid(row=6, column=1, sticky="NSEW")
 
-        # label for panel values
+        # labels for panel values
         volDescLbl = ttk.Label(panelFrame, text="Voltage from Solar Panel", font=SM_FONT, style="My.TLabel")
         curDescLbl = ttk.Label(panelFrame, text="Amperage from Solar Panel", font=SM_FONT, style="My.TLabel")
         volLbl = ttk.Label(panelFrame, text=" Volts", font=MED_FONT, style="My.TLabel")
@@ -277,6 +307,7 @@ class LandingPage(ttk.Frame):
         volLbl.grid(row=1, column=1, pady=(40, 0))
         curLbl.grid(row=1, column=3, pady=(40, 0))
 
+        # panel grid weights for centering
         panelFrame.grid_columnconfigure(0, weight=1)
         panelFrame.grid_columnconfigure(2, weight=1)
         panelFrame.grid_columnconfigure(4, weight=1)
@@ -311,9 +342,11 @@ class AudioPage(ttk.Frame):
     def __init__(self, parent, controller):
         ttk.Frame.__init__(self, parent)
 
+        # title
         audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT)
         audioTitle.grid(row=0, column=1, sticky="N", pady=(40, 0))
 
+        # play/stop labels and buttons
         playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT)
         self.playIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         playBtn = ttk.Button(self, image=self.playIcon, command = self.play)
@@ -326,6 +359,7 @@ class AudioPage(ttk.Frame):
         stopLbl.grid(row=1, column=2, pady=(10, 0))
         stopBtn.grid(row=2, column=2, pady=(10, 10))
 
+        # next page labels/buttons
         homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
         self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
         homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
@@ -342,6 +376,7 @@ class AudioPage(ttk.Frame):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=1)
 
+        # embedded frame for panel stats
         pitchFrame = ttk.Frame(self)
         pitchFrame.grid(row=3, column=1, sticky="NSEW")
 
@@ -354,7 +389,7 @@ class AudioPage(ttk.Frame):
         self.pitchLbl.grid(row=1, column=2, padx=15)
         self.pitchBtnR.grid(row=1, column=3)
 
-        # grid weights for centering
+        # panel frame grid weights for centering
         pitchFrame.grid_columnconfigure(0, weight=1)
         pitchFrame.grid_columnconfigure(4, weight=1)
             
