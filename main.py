@@ -23,6 +23,11 @@ import Adafruit_ADS1x15
 c = threading.Condition()
 ps = 0
 
+# Timer global variable and mutex
+c1 = threading.Condition()
+TIMEOUT = 10
+timer = TIMEOUT
+
 # setup ADC
 adc = Adafruit_ADS1x15.ADS1115()
 
@@ -51,6 +56,9 @@ init()
 # seed random
 random.seed(None)
 
+# Wait to ensure internet connection on boot
+# time.sleep(10)
+
 '''
     Main GUI Class
         Stores frames and starts app in fullscreen
@@ -74,14 +82,15 @@ class DisplayApp(tk.Tk):
 
         self.frames = {}
 
-        for F in (LandingPage, AudioPage, BatteryPage):
+        for F in (AutoPage, LandingPage, AudioPage, BatteryPage):
             frame = F(container, self)
             self.frames[F] = frame
             frame.grid(row = 0, column = 0, sticky = "nsew")
 
-        self.show_frame(LandingPage)
+        self.show_frame(AutoPage)
 
     def show_frame(self, cont):
+        self.resetTimer()
         frame = self.frames[cont]
         frame.tkraise()
 
@@ -95,19 +104,42 @@ class DisplayApp(tk.Tk):
         self.attributes("-fullscreen", False)
         return "break"
 
+    def resetTimer(self):
+        # establish global timer variable
+        global timer
+        
+        c1.acquire()
+        timer = TIMEOUT
+        c1.release()
+
 ''''
-     Page
-        Home page once the display enters user mode
+     Auto Page
+        Welcome screen inviting users to tap, entering user mode
+'''
 
 class AutoPage(ttk.Frame):
 
     def __init__(self, parent, controller):
         gui_style = ttk.Style()
-        gui_style.configure('My.TFrame', background='#e8feff')
-        gui_style.configure('My.TLabel', background='#e8feff')
+        gui_style.configure('My1.TFrame', background='#f44242')
+        gui_style.configure('My1.TLabel', background='#f44242')
 
-        self.bind("<Button-1>", lambda: controller.show_frame(LandingPage))
-'''        
+        ttk.Frame.__init__(self, parent, style="My1.TFrame")
+        title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My1.TLabel")
+        title.grid(row=1, column=1, sticky="N", pady=(60, 0))
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(2, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        self.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+        title.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+        
+        timerT = TimerThread(controller)
+        timerT.daemon = True
+        timerT.start()        
+        
 '''
     Weather Label Update Class
         Contains Yahoo! Weather code and updates weather every minute
@@ -121,8 +153,6 @@ class WeatherUpdateLabel(threading.Thread):
         self.tempLbl = tempLbl
 
     def run(self):
-        # Wait to ensure internet connection on boot
-        time.sleep(10)
         
         # Initialize Yahoo! Weather
         baseurl = "https://query.yahooapis.com/v1/public/yql?"
@@ -162,6 +192,31 @@ class PanelUpdateLabel(threading.Thread):
             # self.volLbl.config(text=str(adc.read_adc(VOLTAGE, gain=GAIN) + " Volts"))
             # self.curLbl.config(text=str(adc.read_adc(CURRENT, gain=GAIN) + " Amps"))
             time.sleep(self.interval)
+
+''''
+    Timer Thread
+        Handles the timer between auto and user mode
+'''
+class TimerThread(threading.Thread):
+    def __init__(self, controller):
+        threading.Thread.__init__(self)
+        self.controller = controller
+
+    def run(self):
+        # Establish global timer variable
+        global timer
+
+        while True:
+            c.acquire()
+            if timer == 0:
+                timer = TIMEOUT
+                self.controller.show_frame(AutoPage)
+            else:
+                timer -= 1
+                print("timer: " + str(timer))
+            c.release()
+            wait(1)
+
 
 ''''
     Landing Page
@@ -234,6 +289,18 @@ class LandingPage(ttk.Frame):
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(4, weight=1)
+      
+        # bind click to timer reset
+        self.bind("<Button-1>", lambda x: self.resetTimer())
+
+    def resetTimer(self):
+        # establish global timer variable
+        global timer
+        
+        c1.acquire()
+        timer = TIMEOUT
+        c1.release()
+                 
 
 '''
     Audio Page
@@ -302,8 +369,21 @@ class AudioPage(ttk.Frame):
         self.pitchLblThread.daemon = True
         self.pitchLblThread.start()
 
+        # bind click to timer reset
+        self.bind("<Button-1>", lambda x: self.resetTimer())        
+
+    def resetTimer(self):
+        # establish global timer variable
+        global timer
+        
+        c1.acquire()
+        timer = TIMEOUT
+        c1.release()
+
     # changes the pitch set
     def changePitches(self, lr):
+        self.resetTimer()
+        
         # Establish global pitch set variable
         global ps
         
@@ -323,6 +403,8 @@ class AudioPage(ttk.Frame):
 
     # plays audio composition
     def play(self):
+        self.resetTimer()
+        
         # disable change pitches
         self.pitchBtnL.state(["disabled"])
         self.pitchBtnR.state(["disabled"])
@@ -331,6 +413,8 @@ class AudioPage(ttk.Frame):
 
     # stops audio composition
     def stop(self):
+        self.resetTimer()
+        
         # enable change pitches
         self.pitchBtnL.state(["!disabled"])
         self.pitchBtnR.state(["!disabled"])
@@ -544,6 +628,17 @@ class BatteryPage(ttk.Frame):
 
         landingBtn = ttk.Button(self, text = "Back to Landing", command = lambda: controller.show_frame(LandingPage))
         landingBtn.pack()
+
+        # bind click to timer reset
+        self.bind("<Button-1>", lambda x: self.resetTimer())        
+
+    def resetTimer(self):
+        # establish global timer variable
+        global timer
+        
+        c1.acquire()
+        timer = TIMEOUT
+        c1.release()
 
 # run the app
 app = DisplayApp()
