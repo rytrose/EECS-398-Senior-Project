@@ -142,23 +142,33 @@ class AutoPage(ttk.Frame):
 
     def __init__(self, parent, controller):
         gui_style = ttk.Style()
-        gui_style.configure('My1.TFrame', background='#f44242')
-        gui_style.configure('My1.TLabel', background='#f44242')
+        gui_style.configure('My1.TFrame', background='#ffaaaa')
+        gui_style.configure('My1.TLabel', background='#ffaaaa')
 
         ttk.Frame.__init__(self, parent, style="My1.TFrame")
         title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My1.TLabel")
         title.grid(row=1, column=1, sticky="N", pady=(60, 0))
+        beginLbl = ttk.Label(self, text="Tap anywhere to begin!", font=MED_FONT, style="My1.TLabel")
+        beginLbl.grid(row=2, column=1, pady=(10,40))
 
+        self.fpLogoAttr = tk.PhotoImage(file="/home/pi/SPC/lake metroparks logo.png")
+        fpLogoLbl = ttk.Label(self, image=self.fpLogoAttr, style="My1.TLabel")
+        fpLogoLbl.grid(row=3, column=1, padx=40, pady=20)
+
+        self.rwLogoAttr = tk.PhotoImage(file="/home/pi/SPC/Rockwell_Automation_logo.png")
+        rwLogoLbl = ttk.Label(self, image=self.rwLogoAttr, style="My1.TLabel")
+        rwLogoLbl.grid(row=4, column=1, padx=40, pady=(20, 40))
+        
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
-
+        
         self.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         title.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
-
-        
-        
+        beginLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+        fpLogoLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+        rwLogoLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
+          
         timerT = TimerThread(controller)
         timerT.daemon = True
         timerT.start()        
