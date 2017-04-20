@@ -160,7 +160,7 @@ class AutoPage(ttk.Frame):
 
         self.rwLogoAttr = tk.PhotoImage(file="/home/pi/SPC/Rockwell_Automation_logo.png")
         rwLogoLbl = ttk.Label(self, image=self.rwLogoAttr, style="My1.TLabel")
-        rwLogoLbl.grid(row=5, column=2, sticky="E", padx=(28, 10), pady=(10, 10))
+        rwLogoLbl.grid(row=5, column=2, sticky="E", padx=(80, 10), pady=(10, 10))
 
         self.cwruLogoAttr = tk.PhotoImage(file="/home/pi/SPC/cwru-formal-logo.png")
         cwruLogoLbl = ttk.Label(self, image=self.cwruLogoAttr, style="My1.TLabel")
@@ -273,6 +273,7 @@ class LandingPage(ttk.Frame):
         gui_style = ttk.Style()
         gui_style.configure('My.TFrame', background='#e8feff')
         gui_style.configure('My.TLabel', background='#e8feff')
+        gui_style.configure('My.TButton', background='#c6d2ff')
 
         # frame and title
         ttk.Frame.__init__(self, parent, style="My.TFrame")
@@ -301,13 +302,13 @@ class LandingPage(ttk.Frame):
         # next page labels/buttons
         audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My.TLabel")
         self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
-        audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
+        audioBtn = ttk.Button(self, image=self.audioIcon, style="My.TButton", command = lambda: controller.show_frame(AudioPage))
         audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=(10, 0))
         audioBtn.grid(row=6, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT, style="My.TLabel")
         self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
-        batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
+        batteryBtn = ttk.Button(self, image=self.batteryIcon, style="My.TButton", command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=(10, 0))
         batteryBtn.grid(row=6, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
 
@@ -358,50 +359,57 @@ class LandingPage(ttk.Frame):
 class AudioPage(ttk.Frame):
 
     def __init__(self, parent, controller):
-        ttk.Frame.__init__(self, parent)
+        # background color
+        gui_style = ttk.Style()
+        gui_style.configure('My3.TFrame', background='#ffffba')
+        gui_style.configure('My3.TLabel', background='#ffffba')
+        gui_style.configure('My3.TButton', background='#c6d2ff')
+
+        # frame
+        ttk.Frame.__init__(self, parent, style="My3.TFrame")
 
         # title
-        audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT)
-        audioTitle.grid(row=0, column=1, sticky="N", pady=(40, 0))
+        audioTitle = ttk.Label(self, text = "Audio Experiments", font = TITLE_FONT, style="My3.TLabel")
+        audioTitle.grid(row=0, column=1, sticky="N", pady=(60, 0))
 
         # play/stop labels and buttons
-        playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT)
+        playLbl = ttk.Label(self, text="Play Audio", font=MED_FONT, style="My3.TLabel")
         self.playIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
-        playBtn = ttk.Button(self, image=self.playIcon, command = self.play)
+        playBtn = ttk.Button(self, image=self.playIcon, style="My3.TButton", command = self.play)
         playLbl.grid(row=1, column=0, pady=(10, 0))
         playBtn.grid(row=2, column=0, pady=(10, 10))
 
-        stopLbl = ttk.Label(self, text="Stop Audio", font=MED_FONT)
+        stopLbl = ttk.Label(self, text="Stop Audio", font=MED_FONT, style="My3.TLabel")
         self.stopIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
-        stopBtn = ttk.Button(self, image=self.stopIcon, command = self.stop)
+        stopBtn = ttk.Button(self, image=self.stopIcon, style="My3.TButton", command = self.stop)
         stopLbl.grid(row=1, column=2, pady=(10, 0))
         stopBtn.grid(row=2, column=2, pady=(10, 10))
 
         # next page labels/buttons
-        homeLbl = ttk.Label(self, text="Back", font=MED_FONT)
+        homeLbl = ttk.Label(self, text="Back", font=MED_FONT, style="My3.TLabel")
         self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
-        homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
+        homeBtn = ttk.Button(self, image=self.homeIcon, style="My3.TButton", command = lambda: controller.show_frame(LandingPage))
         homeLbl.grid(row=4, column=0, sticky="W", padx=(160, 20), pady=(10, 0))
         homeBtn.grid(row=5, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
-        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT)
+        batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT, style="My3.TLabel")
         self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
-        batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
+        batteryBtn = ttk.Button(self, image=self.batteryIcon, style="My3.TButton", command = lambda: controller.show_frame(BatteryPage))
         batteryLbl.grid(row=4, column=2, sticky="E", padx=(20, 105), pady=(10, 0))
         batteryBtn.grid(row=5, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
 
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
         # embedded frame for panel stats
-        pitchFrame = ttk.Frame(self)
+        pitchFrame = ttk.Frame(self, style="My3.TFrame")
         pitchFrame.grid(row=3, column=1, sticky="NSEW")
 
-        self.pitchDescLbl = ttk.Label(pitchFrame, text="Change Pitch Set", font=MED_FONT)
-        self.pitchBtnL = ttk.Button(pitchFrame, text="<--", command = lambda: self.changePitches(0))
-        self.pitchBtnR = ttk.Button(pitchFrame, text="-->", command = lambda: self.changePitches(1))
-        self.pitchLbl = ttk.Label(pitchFrame, text="Blues", font=MED_FONT)
+        self.pitchDescLbl = ttk.Label(pitchFrame, text="Change Pitch Set", font=MED_FONT, style="My3.TLabel")
+        self.pitchBtnL = ttk.Button(pitchFrame, text="<--", style="My3.TButton", command = lambda: self.changePitches(0))
+        self.pitchBtnR = ttk.Button(pitchFrame, text="-->", style="My3.TButton", command = lambda: self.changePitches(1))
+        self.pitchLbl = ttk.Label(pitchFrame, text="Blues", font=MED_FONT, style="My3.TLabel")
         self.pitchDescLbl.grid(row=0, column=2, pady=(0, 5))
         self.pitchBtnL.grid(row=1, column=1)
         self.pitchLbl.grid(row=1, column=2, padx=15)
@@ -679,6 +687,7 @@ class BatteryPage(ttk.Frame):
         gui_style = ttk.Style()
         gui_style.configure('My2.TFrame', background='#b3ffb2')
         gui_style.configure('My2.TLabel', background='#b3ffb2')
+        gui_style.configure('My2.TButton', background='#c6d2ff')
 
         # frame and title
         ttk.Frame.__init__(self, parent, style="My2.TFrame")
@@ -688,13 +697,13 @@ class BatteryPage(ttk.Frame):
         # next page labels/buttons
         homeLbl = ttk.Label(self, text="Back", font=MED_FONT, style="My2.TLabel")
         self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
-        homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
+        homeBtn = ttk.Button(self, image=self.homeIcon, style="My2.TButton", command = lambda: controller.show_frame(LandingPage))
         homeLbl.grid(row=7, column=0, sticky="W", padx=(160, 20), pady=(10, 0))
         homeBtn.grid(row=8, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
 
         audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My2.TLabel")
         self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
-        audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
+        audioBtn = ttk.Button(self, image=self.audioIcon, style="My2.TButton", command = lambda: controller.show_frame(AudioPage))
         audioLbl.grid(row=7, column=2, sticky="E", padx=(20, 105), pady=(10, 0))
         audioBtn.grid(row=8, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
 
