@@ -43,7 +43,7 @@ ps = 0
 
 # Timer global variable and mutex
 c1 = threading.Condition()
-TIMEOUT = 10 # number of seconds before user goes to auto mode
+TIMEOUT = 120 # number of seconds before user goes to auto mode
 timer = TIMEOUT
 
 # setup ADC
@@ -61,11 +61,14 @@ GAIN = 1
 # setup channels
 VOLTAGE = 0
 CURRENT = 1
+BATTERY = 2
 
 # setup fonts
 SM_FONT = ("Verdana", "11")
 MED_FONT = ("Verdana", "12")
+ML_FONT = ("Verdana", "16")
 LARGE_FONT = ("Verdana", "18")
+XL_FONT = ("Verdana", "21")
 TITLE_FONT = ("Verdana", "24")
 
 # init ChucK
@@ -128,7 +131,7 @@ class DisplayApp(tk.Tk):
     def resetTimer(self):
         # establish global timer variable
         global timer
-        
+
         c1.acquire()
         timer = TIMEOUT
         c1.release()
@@ -147,7 +150,7 @@ class AutoPage(ttk.Frame):
 
         ttk.Frame.__init__(self, parent, style="My1.TFrame")
         title = ttk.Label(self, text="Lake Metroparks Farmpark\n           Solar Tracker", font=TITLE_FONT, style="My1.TLabel")
-        title.grid(row=1, column=1, sticky="N", pady=(60, 0))
+        title.grid(row=1, column=1, sticky="N", pady=(80, 0))
         beginLbl = ttk.Label(self, text="Tap anywhere to begin!", font=MED_FONT, style="My1.TLabel")
         beginLbl.grid(row=2, column=1, pady=(10,40))
 
@@ -157,22 +160,26 @@ class AutoPage(ttk.Frame):
 
         self.rwLogoAttr = tk.PhotoImage(file="/home/pi/SPC/Rockwell_Automation_logo.png")
         rwLogoLbl = ttk.Label(self, image=self.rwLogoAttr, style="My1.TLabel")
-        rwLogoLbl.grid(row=4, column=1, padx=40, pady=(20, 40))
-        
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(2, weight=1)
+        rwLogoLbl.grid(row=5, column=2, sticky="E", padx=(28, 10), pady=(10, 10))
+
+        self.cwruLogoAttr = tk.PhotoImage(file="/home/pi/SPC/cwru-formal-logo.png")
+        cwruLogoLbl = ttk.Label(self, image=self.cwruLogoAttr, style="My1.TLabel")
+        cwruLogoLbl.grid(row=5, column=0, sticky="W", padx=10, pady=(10, 10))
+
+        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        
+        self.grid_rowconfigure(4, weight=1)
+
         self.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         title.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         beginLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         fpLogoLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
         rwLogoLbl.bind("<Button-1>", lambda x: controller.show_frame(LandingPage))
-          
+
         timerT = TimerThread(controller)
         timerT.daemon = True
-        timerT.start()        
-        
+        timerT.start()
+
 '''
     Weather Label Update Class
         Contains Yahoo! Weather code and updates weather every minute
@@ -186,11 +193,13 @@ class WeatherUpdateLabel(threading.Thread):
         self.tempLbl = tempLbl
 
     def run(self):
-        
+
         # Initialize Yahoo! Weather
         baseurl = "https://query.yahooapis.com/v1/public/yql?"
         yql_query = "select item.condition from weather.forecast where woeid=2433149"
         yql_url = baseurl + urllib.parse.urlencode({'q':yql_query}) + "&format=json"
+
+        wait(10)
 
         while True:
             # Open URL and grab data
@@ -208,7 +217,6 @@ class WeatherUpdateLabel(threading.Thread):
                 volLbl - voltage label to be updated
                 curLbl - current label to be updated
                 interval - interval of time between updates
-
 '''
 class PanelUpdateLabel(threading.Thread):
     def __init__(self, volLbl, curLbl, interval):
@@ -220,8 +228,8 @@ class PanelUpdateLabel(threading.Thread):
     def run(self):
         while True:
             self.volLbl.config(text=str(round(random.random(), 4))  + " Volts")
-            self.curLbl.config(text=str(round(random.random(), 4))  + " Amps") 
-            
+            self.curLbl.config(text=str(round(random.random(), 4))  + " Amps")
+
             # self.volLbl.config(text=str(adc.read_adc(VOLTAGE, gain=GAIN) + " Volts"))
             # self.curLbl.config(text=str(adc.read_adc(CURRENT, gain=GAIN) + " Amps"))
             time.sleep(self.interval)
@@ -294,13 +302,13 @@ class LandingPage(ttk.Frame):
         audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My.TLabel")
         self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
         audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
-        audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=10)
+        audioLbl.grid(row=5, column=0, sticky="W", padx=(110, 0), pady=(10, 0))
         audioBtn.grid(row=6, column=0, sticky="W", padx=(80, 0), pady=(10, 40))
 
         batteryLbl = ttk.Label(self, text="Battery Diagnostics", font=MED_FONT, style="My.TLabel")
         self.batteryIcon = tk.PhotoImage(file="/home/pi/SPC/battery.png")
         batteryBtn = ttk.Button(self, image=self.batteryIcon, command = lambda: controller.show_frame(BatteryPage))
-        batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=10)
+        batteryLbl.grid(row=5, column=2, sticky="E", padx=(0, 105), pady=(10, 0))
         batteryBtn.grid(row=6, column=2, sticky="E", padx=(0, 80), pady=(10, 40))
 
         # frame for panel values
@@ -321,7 +329,7 @@ class LandingPage(ttk.Frame):
         panelFrame.grid_columnconfigure(0, weight=1)
         panelFrame.grid_columnconfigure(2, weight=1)
         panelFrame.grid_columnconfigure(4, weight=1)
-        
+
         # update panel values
         panelT = PanelUpdateLabel(volLbl, curLbl, 2)
         panelT.daemon = True
@@ -330,18 +338,18 @@ class LandingPage(ttk.Frame):
         # grid weights for centering
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(4, weight=1)
-      
+
         # bind click to timer reset
         self.bind("<Button-1>", lambda x: self.resetTimer())
 
     def resetTimer(self):
         # establish global timer variable
         global timer
-        
+
         c1.acquire()
         timer = TIMEOUT
         c1.release()
-                 
+
 
 '''
     Audio Page
@@ -402,7 +410,7 @@ class AudioPage(ttk.Frame):
         # panel frame grid weights for centering
         pitchFrame.grid_columnconfigure(0, weight=1)
         pitchFrame.grid_columnconfigure(4, weight=1)
-            
+
         # create audio thread
         self.playThread = AudioPlayThread()
         self.playThread.daemon = True
@@ -415,12 +423,12 @@ class AudioPage(ttk.Frame):
         self.pitchLblThread.start()
 
         # bind click to timer reset
-        self.bind("<Button-1>", lambda x: self.resetTimer())        
+        self.bind("<Button-1>", lambda x: self.resetTimer())
 
     def resetTimer(self):
         # establish global timer variable
         global timer
-        
+
         c1.acquire()
         timer = TIMEOUT
         c1.release()
@@ -428,10 +436,10 @@ class AudioPage(ttk.Frame):
     # changes the pitch set
     def changePitches(self, lr):
         self.resetTimer()
-        
+
         # Establish global pitch set variable
         global ps
-        
+
         c.acquire()
         if lr == 0:
             if ps > 0:
@@ -444,12 +452,12 @@ class AudioPage(ttk.Frame):
             else:
                 ps = 0
         c.release()
-        
+
 
     # plays audio composition
     def play(self):
         self.resetTimer()
-        
+
         # disable change pitches
         self.pitchBtnL.state(["disabled"])
         self.pitchBtnR.state(["disabled"])
@@ -459,7 +467,7 @@ class AudioPage(ttk.Frame):
     # stops audio composition
     def stop(self):
         self.resetTimer()
-        
+
         # enable change pitches
         self.pitchBtnL.state(["!disabled"])
         self.pitchBtnR.state(["!disabled"])
@@ -511,8 +519,8 @@ class AudioPlayThread(threading.Thread):
 
     def run(self):
         # setup global pitch set variable
-        global ps 
-               
+        global ps
+
         # pitch-to-freq dictionary
         self.p2f = { 'C2':65.41, 'Cs2/Db2':69.30, 'D2':73.42, 'Ds2/Eb2':77.78, 'E2':82.41,
 'F2':87.31, 'Fs2/Gb2':92.50, 'G2':98.00, 'Gs2/Ab2':103.83, 'A2':110.00,
@@ -568,7 +576,7 @@ class AudioPlayThread(threading.Thread):
             # create lists for order
             self.pitchList = list(self.myPitches.keys())
             self.freqList = list(self.myPitches.values())
-            
+
             # what will actually be playing
             while not self.stopped():
                 # read current level
@@ -607,7 +615,7 @@ class AudioPlayThread(threading.Thread):
                     elif mainIndex == (len(self.pitchList) - 1):
                         secPitch = self.pitchList[mainIndex - 1]
                         terPitch = self.pitchList[mainIndex - 2]
-                        
+
                     # choose note
                     rand = random.random()
                     if rand > 0.0 and rand < 0.15:
@@ -619,7 +627,7 @@ class AudioPlayThread(threading.Thread):
                     else:
                         s.setFrequency(self.myPitches[terPitch])
                         print("played ter")
-                    
+
                     s.strike(0.5)
                     wait(self.wait)
                     self.measureCtr -= 1
@@ -667,23 +675,103 @@ class AudioPlayThread(threading.Thread):
 class BatteryPage(ttk.Frame):
 
     def __init__(self, parent, controller):
-        ttk.Frame.__init__(self, parent)
-        label = ttk.Label(self, text = "Battery Diagnostics", font = LARGE_FONT)
-        label.pack(pady = 10, padx = 10)
+        # background color
+        gui_style = ttk.Style()
+        gui_style.configure('My2.TFrame', background='#b3ffb2')
+        gui_style.configure('My2.TLabel', background='#b3ffb2')
 
-        landingBtn = ttk.Button(self, text = "Back to Landing", command = lambda: controller.show_frame(LandingPage))
-        landingBtn.pack()
+        # frame and title
+        ttk.Frame.__init__(self, parent, style="My2.TFrame")
+        title = ttk.Label(self, text="Battery Diagnostics", font=TITLE_FONT, style="My2.TLabel")
+        title.grid(row=0, column=1, sticky="N", pady=(60, 0))
+
+        # next page labels/buttons
+        homeLbl = ttk.Label(self, text="Back", font=MED_FONT, style="My2.TLabel")
+        self.homeIcon = tk.PhotoImage(file="/home/pi/SPC/home.png")
+        homeBtn = ttk.Button(self, image=self.homeIcon, command = lambda: controller.show_frame(LandingPage))
+        homeLbl.grid(row=7, column=0, sticky="W", padx=(160, 20), pady=(10, 0))
+        homeBtn.grid(row=8, column=0, sticky="W", padx=(80, 20), pady=(10, 40))
+
+        audioLbl = ttk.Label(self, text="Audio Experiments", font=MED_FONT, style="My2.TLabel")
+        self.audioIcon = tk.PhotoImage(file="/home/pi/SPC/headphones.png")
+        audioBtn = ttk.Button(self, image=self.audioIcon, command = lambda: controller.show_frame(AudioPage))
+        audioLbl.grid(row=7, column=2, sticky="E", padx=(20, 105), pady=(10, 0))
+        audioBtn.grid(row=8, column=2, sticky="E", padx=(20, 80), pady=(10, 40))
+
+        # battery diagnostic labels
+        chargingLbl = ttk.Label(self, text="Not Charging", font=LARGE_FONT, style="My2.TLabel")
+        chargingLbl.grid(row=2, column=1, pady=(5, 40))
+        pwrConsumptionLbl = ttk.Label(self, text="Battery Power Consumption", font=LARGE_FONT, style="My2.TLabel")
+        pwrConsumptionLbl.grid(row=3, column=1, pady=5)
+        powerLbl = ttk.Label(self, text="0 mAh", font=ML_FONT, style="My2.TLabel")
+        powerLbl.grid(row=4, column=1, pady=5)
+        timeLbl = ttk.Label(self, text="", font=ML_FONT, style="My2.TLabel")
+        timeLbl.grid(row=5, column=1, pady=5)
+
+        # grid weights for centering
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(6, weight=1)
+
+        # update battery values
+        batteryT = BatteryUpdateLabel(chargingLbl, powerLbl, timeLbl)
+        batteryT.daemon = True
+        batteryT.start()
 
         # bind click to timer reset
-        self.bind("<Button-1>", lambda x: self.resetTimer())        
+        self.bind("<Button-1>", lambda x: self.resetTimer())
 
     def resetTimer(self):
         # establish global timer variable
         global timer
-        
+
         c1.acquire()
         timer = TIMEOUT
         c1.release()
+
+'''
+    Battery Label Update Class
+        Updates the label displaying power draw from the batter
+            Inputs:
+                chargingLbl - charging/not charging label to be updated
+                powerLbl - power label to be updated
+                timeLbl - charging time label to be updated
+'''
+class BatteryUpdateLabel(threading.Thread):
+    def __init__(self, chargingLbl, powerLbl, timeLbl):
+        threading.Thread.__init__(self)
+        self.chargingLbl = chargingLbl
+        self.powerLbl = powerLbl
+        self.timeLbl = timeLbl
+
+    def run(self):
+        secondsCharging = 0
+
+        while True:
+            # read proportional current
+            powerVal = 700 # currently arbitrary
+            # powerVal = (adc.read_adc(BATTERY, gain=GAIN)
+
+            # cutoff value for battery not being drawn from
+            CUTOFF = 200
+
+            if powerVal > CUTOFF:
+                secondsCharging += 1
+                # map input value to mA
+                # TODO
+                mAVal = powerVal
+                mAhVal = mAVal * (secondsCharging / 3600)
+
+                self.chargingLbl.config(text="Charging")
+                self.powerLbl.config(text=str(round(mAhVal, 4))  + " mAh")
+                self.timeLbl.config(text="Over " + str(secondsCharging)  + " seconds")
+            else:
+                self.chargingLbl.config(text="Not Charging")
+                self.powerLbl.config(text="0 mAh")
+                self.timeLbl.config(text="")
+                secondsCharging = 0
+
+            time.sleep(1)
 
 # run the app
 app = DisplayApp()
