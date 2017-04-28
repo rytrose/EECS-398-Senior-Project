@@ -227,11 +227,16 @@ class PanelUpdateLabel(threading.Thread):
 
     def run(self):
         while True:
-            self.volLbl.config(text=str(round(random.random(), 4))  + " Volts")
-            self.curLbl.config(text=str(round(random.random(), 4))  + " Amps")
+            volIn = adc.read_adc(VOLTAGE, gain=GAIN)
+            curIn = adc.read_adc(CURRENT, gain=GAIN)
 
-            # self.volLbl.config(text=str(adc.read_adc(VOLTAGE, gain=GAIN) + " Volts"))
-            # self.curLbl.config(text=str(adc.read_adc(CURRENT, gain=GAIN) + " Amps"))
+            # maps [0 - 26500] to [0 - 10V] to [0 - 240V]
+            volVal = ((volIn / 26500) * 10) * 24
+            # maps [0 - 26500] to [4 - 20 mA] to [0 - 7A] 
+            curVal = ((curIn / 26500) * 16) * .4375 
+
+            self.volLbl.config(text=str(round(volVal, 4)) + " Volts")
+            self.curLbl.config(text=str(round(curVal, 4)) + " Amps")
             time.sleep(self.interval)
 
 ''''
@@ -588,20 +593,16 @@ class AudioPlayThread(threading.Thread):
             # what will actually be playing
             while not self.stopped():
                 # read current level
-                # curVal = adc.read_adc(CURRENT, gain=GAIN)
-                curVal = math.floor(12000 + (15000 * random.random()))
-                print("curVal: " + str(curVal))
-
+                curVal = adc.read_adc(CURRENT, gain=GAIN)
+                
                 # set tempo
                 self.beat = self.calcTempo(curVal)
 
                 self.BeatsPerMeasure = 4
 
                 # read voltage level
-                # volVal = adc.read_adc(VOLTAGE, gain=GAIN)
-                volVal = math.floor(12000 + (15000 * random.random()))
-                print("volVal: " + str(volVal))
-
+                volVal = adc.read_adc(VOLTAGE, gain=GAIN)
+                
                 # calculate subdivisions
                 self.calcSubdivisions(volVal, curVal)
 
@@ -762,7 +763,7 @@ class BatteryUpdateLabel(threading.Thread):
             # powerVal = (adc.read_adc(BATTERY, gain=GAIN)
 
             # cutoff value for battery not being drawn from
-            CUTOFF = 200
+            CUTOFF = 50
 
             if powerVal > CUTOFF:
                 secondsCharging += 1
