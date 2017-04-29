@@ -230,6 +230,8 @@ class PanelUpdateLabel(threading.Thread):
             volIn = adc.read_adc(VOLTAGE, gain=GAIN)
             curIn = adc.read_adc(CURRENT, gain=GAIN)
 
+            print("Voltage Raw: " + str(volIn) + " | Current Raw: " + str(curIn))
+
             # maps [0 - 26500] to [0 - 10V] to [0 - 240V]
             volVal = ((volIn / 26500) * 10) * 24
             # maps [0 - 26500] to [4 - 20 mA] to [0 - 7A] 
@@ -759,11 +761,12 @@ class BatteryUpdateLabel(threading.Thread):
 
         while True:
             # read proportional current
-            powerVal = 700 # currently arbitrary
-            # powerVal = (adc.read_adc(BATTERY, gain=GAIN)
+            powerVal = adc.read_adc(BATTERY, gain=GAIN)
 
+            print("Power Raw: " + str(powerVal))
+            
             # cutoff value for battery not being drawn from
-            CUTOFF = 50
+            CUTOFF = 1000
 
             if powerVal > CUTOFF:
                 secondsCharging += 1
